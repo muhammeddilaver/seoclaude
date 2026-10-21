@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+credentials.json
+token.json
+config.json
+.DS_Store
+*.tgz

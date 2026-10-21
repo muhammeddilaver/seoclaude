@@ -1,0 +1,59 @@
+{
+  "name": "seoclaude",
+  "version": "0.1.0",
+  "description": "SEO MCP server for Claude: Google Search Console, GA4, Bing Webmaster, IndexNow, PageSpeed, AdSense and Google Ads Keyword Planner, plus live technical SEO audits",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "seo",
+    "google-search-console",
+    "google-analytics",
+    "ga4",
+    "bing-webmaster-tools",
+    "indexnow",
+    "pagespeed",
+    "core-web-vitals",
+    "adsense",
+    "google-ads",
+    "keyword-planner",
+    "technical-seo"
+  ],
+  "author": "Muhammed Dilaver",
+  "license": "MIT",
+  "homepage": "https://github.com/muhammeddilaver/seoclaude#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/muhammeddilaver/seoclaude.git"
+  },
+  "bugs": {
+    "url": "https://github.com/muhammeddilaver/seoclaude/issues"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "seoclaude": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "auth": "node dist/index.js auth",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "google-auth-library": "^11.3.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
