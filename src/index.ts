@@ -7,7 +7,9 @@ import { AdsClient } from "./ads.js";
 import { AdsenseClient } from "./adsense.js";
 import { GscClient, type Dimension } from "./gsc.js";
 import { GaClient } from "./ga.js";
-import { auditPage, countBy, mapLimit, readSitemap, sample } from "./audit.js";
+import { auditPage, countBy, mapLimit, normalize, readSitemap, sample } from "./audit.js";
+import { crawlSite } from "./crawl.js";
+import { checkRobots } from "./robots.js";
 import { BingClient } from "./bing.js";
 import { optionalKey, requireKey } from "./config.js";
 import { submitIndexNow } from "./indexnow.js";
@@ -83,7 +85,7 @@ function handler<A>(fn: (args: A) => Promise<unknown>) {
   };
 }
 
-const server = new McpServer({ name: "seoclaude", version: "0.1.0" });
+const server = new McpServer({ name: "seoclaude", version: "0.2.0" });
 const readOnly = { readOnlyHint: true, openWorldHint: true };
 
 server.registerTool(
@@ -260,7 +262,9 @@ server.registerTool(
     description:
       "Fetches a live URL and checks technical SEO signals: redirect chain, status, noindex (meta and X-Robots-Tag), " +
       "canonical (missing, multiple, other host, redirecting target), hreflang (self-reference, host, return links), " +
-      "title/description length, html lang and JSON-LD validity. Returns the parsed signals plus a list of issues.",
+      "title/description length, html lang, robots.txt blocking, h1 and heading order, thin content, image alt text, " +
+      "and JSON-LD (parse errors plus required/recommended properties for Google rich result types). Returns the parsed " +
+      "signals plus a list of issues.",
     inputSchema: {
       url: z.string().url(),
       checkCanonicalTarget: z.boolean().default(true).describe("Fetch the canonical URL when it differs from the page"),
@@ -316,6 +320,82 @@ server.registerTool(
       // One example per issue code, so the summary stays short on large samples.
       examples: [...new Map(issues.map((i) => [i.code, i] as const).reverse()).values()],
       pages: audits.map((a) => ({ url: a.url, issues: a.issues.map((i) => i.code) })),
+    };
+  }),
+);
+
+server.registerTool(
+  "check_robots",
+  {
+    title: "Check robots.txt",
+    description:
+      "Reads a site's robots.txt with Google's matching rules (longest match wins, Allow wins ties, * and $ wildcards). " +
+      "Reports whether Googlebot and Bingbot can reach the homepage and CSS/JS paths, which AI crawlers are allowed " +
+      "(GPTBot, OAI-SearchBot, ClaudeBot, Claude-SearchBot, PerplexityBot, Google-Extended, CCBot and more, each with " +
+      "what blocking it costs: training vs search citations), whether declared sitemaps answer 200, and whether " +
+      "/llms.txt exists. Optionally tests specific URLs for a given user agent.",
+    inputSchema: {
+      url: z.string().url().describe("Any URL on the site; robots.txt is read from its origin"),
+      testUrls: z.array(z.string().url()).max(100).optional().describe("URLs to test against the rules"),
+      userAgent: z.string().default("Googlebot").describe("Product token used for testUrls"),
+    },
+    annotations: readOnly,
+  },
+  handler(async ({ url, testUrls, userAgent }) => checkRobots(url, testUrls, userAgent)),
+);
+
+server.registerTool(
+  "crawl_site",
+  {
+    title: "Crawl site",
+    description:
+      "Crawls a site from a start URL by following internal links (breadth-first, same host, robots.txt respected as " +
+      "Googlebot) and runs audit_page's checks on every page. Reports click depth, broken internal links, links to " +
+      "redirects, noindex, non-canonical or robots-blocked pages, weakly linked pages, most-linked pages with anchors, " +
+      "orphan sitemap URLs (in the sitemap but never linked), sitemap URLs that aren't indexable, duplicate titles and " +
+      "descriptions, and issue counts with examples. With siteUrl it also lists Search Console pages that get clicks " +
+      "but no internal links. Only links present in the HTML are seen (not ones added by client-side JavaScript).",
+    inputSchema: {
+      url: z.string().url().describe("Start URL, usually the homepage"),
+      maxPages: z.number().int().min(1).max(5000).default(300),
+      maxDepth: z.number().int().min(0).max(50).default(10),
+      maxSeconds: z.number().int().min(10).max(900).default(180).describe("Stops and reports what it has when exceeded"),
+      concurrency: z.number().int().min(1).max(10).default(5),
+      respectRobots: z.boolean().default(true),
+      ignoreQueryStrings: z.boolean().default(false).describe("Treat ?a=1 and ?a=2 as one URL (for faceted sites)"),
+      sitemapUrl: z.string().url().optional().describe("Sitemap for the orphan check; defaults to robots.txt's, then /sitemap.xml"),
+      siteUrl: siteUrl.optional().describe("Search Console property; adds pages with clicks but no internal links"),
+      ...dateRange,
+    },
+    annotations: readOnly,
+  },
+  handler(async ({ url, maxPages, maxDepth, maxSeconds, concurrency, respectRobots, ignoreQueryStrings, sitemapUrl, siteUrl, startDate, endDate }) => {
+    const { discovered, ...report } = await crawlSite(url, {
+      maxPages,
+      maxDepth,
+      maxSeconds,
+      concurrency,
+      respectRobots,
+      ignoreQueryStrings,
+      sitemapUrl,
+    });
+    if (!siteUrl) return report;
+
+    const rows = await (await client()).searchAnalyticsAll(siteUrl, { ...resolveRange(startDate, endDate, 90), dimensions: ["page"] }, 5000);
+    const linked = new Set(discovered.map(normalize));
+    const unlinked = rows
+      .filter((r) => r.clicks > 0 && new URL(r.keys![0]).host === report.host && !linked.has(normalize(r.keys![0])))
+      .sort((a, b) => b.clicks - a.clicks);
+    return {
+      ...report,
+      searchConsole: {
+        pagesWithClicks: rows.filter((r) => r.clicks > 0).length,
+        // With an incomplete crawl, some of these are just beyond the limit rather than truly unlinked.
+        unlinkedWithClicks: {
+          count: unlinked.length,
+          items: unlinked.slice(0, 25).map((r) => ({ url: r.keys![0], clicks: r.clicks, impressions: r.impressions })),
+        },
+      },
     };
   }),
 );

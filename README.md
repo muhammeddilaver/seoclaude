@@ -26,8 +26,10 @@ Nothing is stored: every question is answered from the APIs in real time. The on
 
 | Tool | What it does |
 | --- | --- |
-| `audit_page` | Fetches a live page and checks redirect chain, status, noindex (meta and header), canonical (missing, multiple, other host, redirecting target), hreflang (self-reference, host, return links), title/description, `lang` and JSON-LD |
+| `audit_page` | Fetches a live page and checks redirect chain, status, noindex (meta and header), robots.txt blocking, canonical (missing, multiple, other host, redirecting target), hreflang (self-reference, host, return links), title/description, `lang`, h1 and heading order, thin content, image alt text, and JSON-LD (parse errors plus required/recommended properties for Google rich result types) |
 | `audit_sitemap` | Checks every sitemap URL is on one host, then audits an evenly spaced sample of pages and groups the issues |
+| `crawl_site` | Crawls the site by following internal links and audits every page: click depth, broken links, links to redirects or noindex/non-canonical/blocked pages, weakly linked pages, anchors, orphan sitemap URLs, duplicate titles and descriptions. With a Search Console property, lists pages that get clicks but have no internal links |
+| `check_robots` | robots.txt with Google's matching rules: Googlebot/Bingbot access, blocked CSS/JS, which AI crawlers (GPTBot, OAI-SearchBot, ClaudeBot, PerplexityBot, Google-Extended…) are allowed and what blocking each costs, declared sitemaps, `llms.txt`; tests URLs for any user agent |
 | `pagespeed` | PageSpeed Insights: category scores, Core Web Vitals field data (CrUX) for page and origin, lab metrics, top opportunities, failing SEO/accessibility audits |
 
 ### Google Analytics 4
