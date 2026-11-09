@@ -1,6 +1,6 @@
 # seoclaude
 
-An MCP server that gives Claude (Claude Code, Claude Desktop or any MCP client) your SEO data and the tools to act on it: Google Search Console, Google Analytics 4, Bing Webmaster Tools, IndexNow, PageSpeed Insights, AdSense and Google Ads Keyword Planner, plus live technical SEO audits of your pages.
+An MCP server that gives Claude (Claude Code, Claude Desktop or any MCP client) your SEO data and the tools to act on it: Google Search Console, Google Analytics 4, Google Tag Manager, Bing Webmaster Tools, IndexNow, PageSpeed Insights, AdSense and Google Ads Keyword Planner, plus live technical SEO audits of your pages.
 
 Ask in plain language — *"when did search traffic drop, and which pages lost it?"*, *"are my canonicals and hreflang set up right?"*, *"how much traffic comes from ChatGPT?"* — and Claude pulls the numbers live and works out the answer.
 
@@ -42,6 +42,13 @@ Nothing is stored: every question is answered from the APIs in real time. The on
 | `page_performance` | Search Console and GA4 joined per page; flags low CTR, low engagement, and search clicks with no GA sessions (a tracking gap) |
 | `ai_traffic` | Traffic from AI assistants (ChatGPT, Perplexity, Claude, Gemini, Copilot, DeepSeek, Grok and more), matched by source: totals, share, per-assistant breakdown, landing pages, daily trend |
 
+### Google Tag Manager
+
+| Tool | What it does |
+| --- | --- |
+| `gtm_list_containers` | Every Tag Manager container you can access, with its `GTM-XXXXXX` ID |
+| `gtm_audit` | Audits the live version of a container: GA4 measurement IDs, duplicate Google tag/GA4 config (double-counted page views), dead Universal Analytics tags, analytics hard-coded in Custom HTML, paused tags, tags without a trigger, unused triggers and variables, consent checks. Checks every measurement ID against your GA4 data streams (unknown IDs, or IDs of the wrong property when you pass `property`). Read-only |
+
 ### Bing and IndexNow
 
 | Tool | What it does |
@@ -75,6 +82,7 @@ You need Node.js 20 or newer and a Google Cloud OAuth client of your own (free, 
 2. Under **APIs & Services → Library**, enable the APIs you want:
    - **Google Search Console API**
    - **Google Analytics Data API** and **Google Analytics Admin API**
+   - **Tag Manager API** (optional)
    - **PageSpeed Insights API**
    - **AdSense Management API** (optional)
    - **Google Ads API** (optional)
@@ -91,7 +99,7 @@ You need Node.js 20 or newer and a Google Cloud OAuth client of your own (free, 
 npx seoclaude auth
 ```
 
-A browser window opens; approve access with the Google account that owns your properties. It asks for read-only access to GA4 and AdSense, the `openid` scope PageSpeed Insights uses for quota, and full Search Console access. Google has no narrower scope that allows submitting sitemaps; seoclaude only writes to Search Console when you call `submit_sitemap`.
+A browser window opens; approve access with the Google account that owns your properties. It asks for read-only access to GA4, Tag Manager and AdSense, the `openid` scope PageSpeed Insights uses for quota, and full Search Console access. Google has no narrower scope that allows submitting sitemaps; seoclaude only writes to Search Console when you call `submit_sitemap`.
 
 ### 3. Connect it to Claude
 

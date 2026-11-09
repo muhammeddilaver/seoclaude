@@ -1,7 +1,7 @@
 {
   "name": "seoclaude",
   "version": "0.2.0",
-  "description": "SEO MCP server for Claude: Google Search Console, GA4, Bing Webmaster, IndexNow, PageSpeed, AdSense and Google Ads Keyword Planner, plus live technical SEO audits",
+  "description": "SEO MCP server for Claude: Google Search Console, GA4, Tag Manager, Bing Webmaster, IndexNow, PageSpeed, AdSense and Google Ads Keyword Planner, plus live technical SEO audits",
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -10,6 +10,7 @@
     "google-search-console",
     "google-analytics",
     "ga4",
+    "google-tag-manager",
     "bing-webmaster-tools",
     "indexnow",
     "pagespeed",

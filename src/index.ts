@@ -7,6 +7,7 @@ import { AdsClient } from "./ads.js";
 import { AdsenseClient } from "./adsense.js";
 import { GscClient, type Dimension } from "./gsc.js";
 import { GaClient } from "./ga.js";
+import { GtmClient, crossCheck } from "./gtm.js";
 import { auditPage, countBy, mapLimit, normalize, readSitemap, sample } from "./audit.js";
 import { crawlSite } from "./crawl.js";
 import { checkRobots } from "./robots.js";
@@ -63,6 +64,12 @@ let ga: GaClient | undefined;
 async function gaClient(): Promise<GaClient> {
   ga ??= new GaClient(await getAuthorizedClient());
   return ga;
+}
+
+let gtm: GtmClient | undefined;
+async function gtmClient(): Promise<GtmClient> {
+  gtm ??= new GtmClient(await getAuthorizedClient());
+  return gtm;
 }
 
 const gaProperty = z.string().describe('GA4 property from ga_list_properties, e.g. "properties/123456789" or "123456789"');
@@ -556,6 +563,46 @@ server.registerTool(
   handler(async ({ property, dimensions, metrics, limit }) =>
     (await gaClient()).runRealtimeReport(property, dimensions, metrics, limit),
   ),
+);
+
+server.registerTool(
+  "gtm_list_containers",
+  {
+    title: "List Google Tag Manager containers",
+    description: "Lists every Tag Manager container (with its GTM-XXXXXX public ID and account) the signed-in Google account can access.",
+    annotations: readOnly,
+  },
+  handler(async () => (await gtmClient()).listContainers()),
+);
+
+server.registerTool(
+  "gtm_audit",
+  {
+    title: "Audit a Google Tag Manager container",
+    description:
+      "Audits the live (published) version of a Tag Manager container: Google tag / GA4 measurement IDs and duplicate " +
+      "configuration (double-counted page views), dead Universal Analytics tags, analytics code hard-coded in Custom HTML, " +
+      "paused tags, active tags with no trigger, unused triggers and variables, and whether any tag checks consent. " +
+      "Also checks every measurement ID against your GA4 data streams: IDs that belong to no property you can access, " +
+      "or (with `property`) to a different property. Issues come back ranked by severity. Read-only.",
+    inputSchema: {
+      container: z
+        .string()
+        .describe('Public ID from gtm_list_containers, e.g. "GTM-ABC123", or a path like "accounts/123/containers/456"'),
+      property: gaProperty.optional().describe("The GA4 property this container should feed; enables the wrong-property check"),
+    },
+    annotations: readOnly,
+  },
+  handler(async ({ container, property }) => {
+    const audit = await (await gtmClient()).auditContainer(container);
+    if (!("measurementIds" in audit)) return audit;
+    try {
+      const streams = await (await gaClient()).listMeasurementIds();
+      return { ...audit, gaCrossCheck: crossCheck(audit, streams, property) };
+    } catch (err) {
+      return { ...audit, gaCrossCheck: { skipped: err instanceof Error ? err.message : String(err) } };
+    }
+  }),
 );
 
 server.registerTool(

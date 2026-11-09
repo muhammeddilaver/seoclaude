@@ -12,6 +12,7 @@ const SCOPES = [
   "https://www.googleapis.com/auth/webmasters",
   "https://www.googleapis.com/auth/analytics.readonly",
   "https://www.googleapis.com/auth/adsense.readonly",
+  "https://www.googleapis.com/auth/tagmanager.readonly",
   // PageSpeed Insights accepts OAuth with just openid; calls then use this project's quota, no API key needed.
   "openid",
 ];

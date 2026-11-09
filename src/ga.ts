@@ -102,6 +102,32 @@ export class GaClient {
     );
   }
 
+  /** Web data streams (measurement IDs) of one property, or of every property the account can access. */
+  async listMeasurementIds(property?: string) {
+    type Stream = { displayName?: string; webStreamData?: { measurementId?: string; defaultUri?: string } };
+    const props = property
+      ? [{ property: propertyPath(property), propertyName: undefined as string | undefined }]
+      : await this.listProperties();
+    const perProperty = await Promise.all(
+      props.map(async (p) => {
+        const streams: Stream[] = [];
+        let pageToken: string | undefined;
+        do {
+          const url = `${ADMIN}/${p.property}/dataStreams?pageSize=200${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""}`;
+          const data = await this.call<{ dataStreams?: Stream[]; nextPageToken?: string }>(url);
+          streams.push(...(data.dataStreams ?? []));
+          pageToken = data.nextPageToken;
+        } while (pageToken);
+        return streams.flatMap((s) =>
+          s.webStreamData?.measurementId
+            ? [{ measurementId: s.webStreamData.measurementId, property: p.property, propertyName: p.propertyName, stream: s.displayName, uri: s.webStreamData.defaultUri }]
+            : [],
+        );
+      }),
+    );
+    return perProperty.flat();
+  }
+
   async runReport(property: string, q: GaReportQuery) {
     const body = {
       dateRanges: [{ startDate: q.startDate, endDate: q.endDate }],
